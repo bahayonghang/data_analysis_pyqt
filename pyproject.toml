@@ -1,0 +1,561 @@
+[project]
+name = "data-analysis-pyqt"
+version = "0.1.0"
+description = "Modern data analysis software built with PyQt6 and Polars"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+    {name = "Data Analysis Team", email = "team@example.com"}
+]
+license = {text = "MIT"}
+keywords = ["data-analysis", "pyqt6", "polars", "desktop-app", "statistics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Desktop Environment",
+]
+
+dependencies = [
+    # Core dependencies
+    "PyQt6>=6.6.0",
+    "PyQt-Fluent-Widgets[full]>=1.4.0",
+    "polars[all]>=0.20.0",
+    
+    # Data processing and analysis
+    "numpy>=1.24.0",
+    "scipy>=1.10.0",
+    "statsmodels>=0.14.0",
+    
+    # Visualization
+    "matplotlib>=3.7.0",
+    "plotly>=5.17.0",
+    "seaborn>=0.12.0",
+    
+    # PDF generation and export
+    "reportlab>=4.0.0",
+    "pandas>=2.0.0",  # For Excel export compatibility
+    "openpyxl>=3.1.0",  # For Excel export
+    
+    # Database and storage
+    "aiosqlite>=0.19.0",
+    "sqlalchemy>=2.0.0",
+    
+    # Async and utilities
+    "asyncio-throttle>=1.0.0",
+    "aiofiles>=23.0.0",
+    "pydantic>=2.5.0",
+    
+    # Logging and monitoring
+    "loguru>=0.7.0",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    # Testing
+    "pytest>=7.4.0",
+    "pytest-qt>=4.2.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+    
+    # Code quality
+    "black>=23.7.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.5.0",
+    "pre-commit>=3.3.0",
+    
+    # Documentation
+    "sphinx>=7.1.0",
+    "sphinx-rtd-theme>=1.3.0",
+]
+
+test = [
+    "pytest>=7.4.0",
+    "pytest-qt>=4.2.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.11.0",
+]
+
+docs = [
+    "sphinx>=7.1.0",
+    "sphinx-rtd-theme>=1.3.0",
+    "myst-parser>=2.0.0",
+]
+
+[project.scripts]
+data-analysis = "src.main:main"
+
+[project.gui-scripts]
+data-analysis-gui = "src.main:main"
+
+[project.urls]
+Homepage = "https://github.com/example/data-analysis-pyqt"
+Documentation = "https://data-analysis-pyqt.readthedocs.io/"
+Repository = "https://github.com/example/data-analysis-pyqt.git"
+"Bug Tracker" = "https://github.com/example/data-analysis-pyqt/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.0",
+    "pytest-qt>=4.2.0", 
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "black>=23.7.0",
+    "isort>=5.12.0",
+    "mypy>=1.5.0",
+    "ruff>=0.1.0"
+]
+
+# 注意：uv 脚本配置已移除，因为不是所有 uv 版本都支持
+# 请直接使用：
+# - python main.py --gui  # 启动GUI
+# - python main.py        # 启动CLI
+# - pytest tests/         # 运行测试
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--strict-config",
+    "--tb=short",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "gui: marks tests that require GUI",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "tests/*",
+    "src/__init__.py",
+    "*/migrations/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]
+
+[tool.black]
+target-version = ['py311']
+line-length = 88
+skip-string-normalization = true
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_optional = true
+show_error_codes = true
+
+[[tool.mypy.overrides]]
+module = [
+    "PyQt6.*",
+    "qfluentwidgets.*",
+    "plotly.*",
+    "matplotlib.*",
+    "seaborn.*",
+]
+ignore_missing_imports = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long, handled by black
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401"]
+"tests/*" = ["B011", "B018"]
+
+# ================================
+# 应用程序打包配置
+# ================================
+
+[tool.pyinstaller]
+# PyInstaller 基本配置
+name = "DataAnalysisApp"
+icon = "assets/icons/app_icon.ico"
+console = false
+windowed = true
+onefile = false  # 使用目录分发，性能更好
+strip = false
+
+# 包含的数据文件
+datas = [
+    "assets/*;assets/",
+    "docs/user_manual.md;docs/",
+    "src/ui/help_system.py;src/ui/",
+    "src/utils/error_guide.py;src/utils/"
+]
+
+# 隐藏导入（PyInstaller可能检测不到的模块）
+hiddenimports = [
+    "PyQt6.QtCore",
+    "PyQt6.QtGui", 
+    "PyQt6.QtWidgets",
+    "qfluentwidgets",
+    "polars",
+    "matplotlib.backends.qt_agg",
+    "plotly.graph_objects",
+    "reportlab.pdfgen",
+    "sqlite3",
+    "asyncio",
+    "aiosqlite",
+    "numpy",
+    "scipy",
+    "pandas",
+    "statsmodels"
+]
+
+# 排除的模块（减小打包大小）
+excludes = [
+    "tkinter",
+    "test",
+    "unittest",
+    "doctest",
+    "pdb",
+    "IPython",
+    "jupyter"
+]
+
+# 收集子模块
+collect_submodules = [
+    "qfluentwidgets",
+    "matplotlib",
+    "plotly"
+]
+
+# UPX压缩（可选，可能不兼容所有系统）
+upx = false
+
+[tool.cx_freeze]
+# cx_Freeze 配置（Windows MSI安装包）
+executables = [
+    {script = "main.py", base = "Win32GUI", target_name = "DataAnalysisApp.exe", icon = "assets/icons/app_icon.ico"}
+]
+
+# 包含的文件
+include_files = [
+    "assets/",
+    "docs/user_manual.md",
+    "README.md"
+]
+
+# 包含的包
+packages = [
+    "PyQt6",
+    "qfluentwidgets", 
+    "polars",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "plotly",
+    "reportlab",
+    "sqlite3",
+    "asyncio",
+    "aiosqlite"
+]
+
+# 包含的模块
+includes = [
+    "src.main",
+    "src.ui",
+    "src.core",
+    "src.utils"
+]
+
+# 排除的包
+excludes = [
+    "tkinter",
+    "test",
+    "unittest"
+]
+
+[tool.nuitka]
+# Nuitka 配置（高性能编译）
+main = "main.py"
+onefile = false
+standalone = true
+include_qt_plugins = "all"
+windows_disable_console = true
+windows_icon_from_ico = "assets/icons/app_icon.ico"
+
+# 包含数据目录
+include_data_dir = [
+    "assets=assets",
+    "docs=docs"
+]
+
+# 包含包
+include_package = [
+    "PyQt6",
+    "qfluentwidgets",
+    "polars", 
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "plotly",
+    "reportlab"
+]
+
+# 优化选项
+optimization = "O2"
+lto = "yes"
+
+# ================================
+# 应用程序元数据和版本管理
+# ================================
+
+[tool.application]
+name = "数据分析应用"
+display_name = "Data Analysis Pro"
+version = "1.0.0"
+build = "20240315"
+author = "Data Analysis Team"
+copyright = "© 2024 Data Analysis Team. All rights reserved."
+description = "Professional data analysis software with modern UI"
+
+# 文件关联
+file_associations = [
+    {extension = ".csv", description = "CSV Data File", icon = "assets/icons/csv_icon.ico"},
+    {extension = ".xlsx", description = "Excel Data File", icon = "assets/icons/excel_icon.ico"},
+    {extension = ".parquet", description = "Parquet Data File", icon = "assets/icons/parquet_icon.ico"}
+]
+
+# 启动参数
+startup_options = [
+    {name = "gui", description = "Launch GUI interface", default = true},
+    {name = "debug", description = "Enable debug mode", default = false},
+    {name = "config", description = "Specify config file path", type = "path"}
+]
+
+# 更新配置
+update_server = "https://api.example.com/updates"
+update_channel = "stable"  # stable, beta, dev
+auto_update = true
+update_check_interval = 86400  # 24小时
+
+# 系统要求
+system_requirements = [
+    {os = "windows", min_version = "10", arch = ["x64"]},
+    {os = "macos", min_version = "10.14", arch = ["x64", "arm64"]},
+    {os = "linux", min_version = "Ubuntu 20.04", arch = ["x64"]}
+]
+
+# 安装选项
+installation = [
+    {component = "core", required = true, size = "150MB"},
+    {component = "samples", required = false, size = "50MB"},
+    {component = "documentation", required = false, size = "20MB"},
+    {component = "templates", required = false, size = "10MB"}
+]
+
+# ================================
+# 部署和发布配置
+# ================================
+
+[tool.deployment]
+# 构建配置
+build_targets = [
+    "windows-x64",
+    "macos-x64", 
+    "macos-arm64",
+    "linux-x64"
+]
+
+# 分发渠道
+distribution_channels = [
+    "github_releases",
+    "website_download",
+    "package_manager"
+]
+
+# 代码签名
+code_signing = [
+    {platform = "windows", certificate = "cert/windows_cert.p12"},
+    {platform = "macos", identity = "Developer ID Application"},
+    {platform = "linux", gpg_key = "signing@example.com"}
+]
+
+# 公证和验证
+notarization = [
+    {platform = "macos", apple_id = "developer@example.com"},
+    {platform = "windows", timestamp_server = "http://timestamp.digicert.com"}
+]
+
+# ================================
+# 安装包配置
+# ================================
+
+[tool.installer]
+# Windows NSIS 配置
+[tool.installer.windows]
+installer_type = "nsis"
+installer_name = "DataAnalysisApp-Setup-{version}.exe"
+install_dir = "$PROGRAMFILES64\\Data Analysis App"
+start_menu_folder = "Data Analysis App"
+desktop_shortcut = true
+uninstaller = true
+compression = "lzma"
+modern_ui = true
+
+# 安装向导页面
+wizard_pages = [
+    "welcome",
+    "license", 
+    "components",
+    "directory",
+    "startmenu",
+    "instfiles",
+    "finish"
+]
+
+# 许可证文件
+license_file = "LICENSE"
+
+# macOS DMG 配置  
+[tool.installer.macos]
+installer_type = "dmg"
+installer_name = "DataAnalysisApp-{version}.dmg"
+volume_name = "Data Analysis App"
+background_image = "assets/installer/dmg_background.png"
+icon_size = 128
+window_size = [640, 480]
+app_position = [170, 220]
+applications_position = [470, 220]
+
+# Linux DEB/RPM 配置
+[tool.installer.linux]
+installer_types = ["deb", "rpm", "appimage"]
+installer_name = "data-analysis-app_{version}_{arch}"
+maintainer = "Data Analysis Team <team@example.com>"
+section = "science"
+priority = "optional"
+depends = ["python3 (>= 3.11)", "python3-pyqt6", "libgl1-mesa-glx"]
+description = "Professional data analysis software with modern PyQt6 interface"
+
+# AppImage 配置
+[tool.installer.linux.appimage]
+desktop_file = "assets/linux/data-analysis-app.desktop"
+icon_file = "assets/icons/app_icon.png"
+categories = ["Science", "DataVisualization", "Office"]
+
+# ================================
+# 质量保证和测试
+# ================================
+
+[tool.packaging_qa]
+# 打包前检查
+pre_build_checks = [
+    "lint_code",
+    "run_tests", 
+    "check_dependencies",
+    "validate_assets",
+    "check_translations"
+]
+
+# 打包后验证
+post_build_tests = [
+    "installation_test",
+    "smoke_test",
+    "performance_test",
+    "compatibility_test"
+]
+
+# 发布前验证
+release_validation = [
+    "security_scan",
+    "virus_scan",
+    "compatibility_matrix",
+    "user_acceptance_test"
+]
+
+# ================================
+# 自动化构建
+# ================================
+
+[tool.ci_cd]
+# GitHub Actions 工作流
+github_workflows = [
+    "build_and_test.yml",
+    "release.yml", 
+    "security_scan.yml"
+]
+
+# 构建矩阵
+build_matrix = [
+    {os = "windows-2022", python = "3.11", arch = "x64"},
+    {os = "windows-2022", python = "3.12", arch = "x64"},
+    {os = "macos-12", python = "3.11", arch = "x64"},
+    {os = "macos-14", python = "3.11", arch = "arm64"},
+    {os = "ubuntu-22.04", python = "3.11", arch = "x64"}
+]
+
+# 发布策略
+release_strategy = [
+    {branch = "main", channel = "stable", auto_deploy = false},
+    {branch = "develop", channel = "beta", auto_deploy = true},
+    {branch = "feature/*", channel = "dev", auto_deploy = false}
+]

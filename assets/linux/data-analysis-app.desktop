@@ -1,0 +1,28 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Data Analysis Pro
+Name[zh_CN]=数据分析专业版
+Comment=Professional data analysis software with modern PyQt6 interface
+Comment[zh_CN]=基于现代PyQt6界面的专业数据分析软件
+Exec=data-analysis-app %F
+Icon=data-analysis-app
+Terminal=false
+StartupNotify=true
+StartupWMClass=DataAnalysisApp
+Categories=Science;DataVisualization;Office;
+Keywords=data;analysis;statistics;visualization;charts;csv;excel;
+MimeType=text/csv;application/vnd.ms-excel;application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/parquet;
+Actions=NewAnalysis;OpenFile;
+
+[Desktop Action NewAnalysis]
+Name=New Analysis
+Name[zh_CN]=新建分析
+Exec=data-analysis-app --new
+Icon=data-analysis-app
+
+[Desktop Action OpenFile]
+Name=Open File
+Name[zh_CN]=打开文件
+Exec=data-analysis-app --open
+Icon=data-analysis-app
