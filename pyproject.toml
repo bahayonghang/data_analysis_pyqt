@@ -26,7 +26,7 @@ classifiers = [
 dependencies = [
     # Core dependencies
     "PyQt6>=6.6.0",
-    "PyQt-Fluent-Widgets[full]>=1.4.0",
+    "PyQt6-Fluent-Widgets[full]>=1.4.0",
     "polars[all]>=0.20.0",
     
     # Data processing and analysis

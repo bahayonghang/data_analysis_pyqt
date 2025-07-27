@@ -8,20 +8,27 @@
 4. 错误信息解释
 """
 
-import json
-from typing import Dict, List, Optional, Any
-from pathlib import Path
 from dataclasses import dataclass
 from enum import Enum
 
 try:
+    from PyQt6.QtCore import QPoint, Qt
+    from PyQt6.QtGui import QFont
     from PyQt6.QtWidgets import (
-        QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-        QTextBrowser, QTreeWidget, QTreeWidgetItem, QSplitter,
-        QWidget, QFrame, QTabWidget, QScrollArea, QToolTip
+        QDialog,
+        QHBoxLayout,
+        QLabel,
+        QPushButton,
+        QScrollArea,
+        QSplitter,
+        QTabWidget,
+        QTextBrowser,
+        QToolTip,
+        QTreeWidget,
+        QTreeWidgetItem,
+        QVBoxLayout,
+        QWidget,
     )
-    from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPoint
-    from PyQt6.QtGui import QFont, QPixmap, QIcon, QPalette
     HAS_PYQT6 = True
 except ImportError:
     HAS_PYQT6 = False
@@ -55,10 +62,10 @@ class HelpItem:
     title: str
     content: str
     category: HelpCategory
-    keywords: List[str]
-    related_items: List[str] = None
+    keywords: list[str]
+    related_items: list[str] = None
     difficulty_level: str = "beginner"  # beginner, intermediate, advanced
-    
+
     def __post_init__(self):
         if self.related_items is None:
             self.related_items = []
@@ -66,11 +73,11 @@ class HelpItem:
 
 class HelpContent:
     """帮助内容管理"""
-    
+
     def __init__(self):
-        self.help_items: Dict[str, HelpItem] = {}
+        self.help_items: dict[str, HelpItem] = {}
         self._load_default_content()
-    
+
     def _load_default_content(self):
         """加载默认帮助内容"""
         default_items = [
@@ -115,7 +122,7 @@ class HelpContent:
                 category=HelpCategory.GETTING_STARTED,
                 keywords=["开始", "入门", "第一次", "新手"]
             ),
-            
+
             # 数据上传
             HelpItem(
                 id="file_upload",
@@ -154,7 +161,7 @@ A: 可以尝试数据采样或分割文件，也可以使用Parquet格式减小�
                 category=HelpCategory.DATA_UPLOAD,
                 keywords=["上传", "文件", "格式", "CSV", "Excel"]
             ),
-            
+
             # 数据分析
             HelpItem(
                 id="analysis_types",
@@ -206,7 +213,7 @@ A: 可以尝试数据采样或分割文件，也可以使用Parquet格式减小�
                 category=HelpCategory.DATA_ANALYSIS,
                 keywords=["分析", "统计", "相关性", "异常值", "时间序列"]
             ),
-            
+
             # 结果查看
             HelpItem(
                 id="reading_results",
@@ -271,7 +278,7 @@ A: 可以尝试数据采样或分割文件，也可以使用Parquet格式减小�
                 category=HelpCategory.RESULTS_VIEWING,
                 keywords=["结果", "解读", "统计", "图表", "异常值"]
             ),
-            
+
             # 故障排除
             HelpItem(
                 id="common_errors",
@@ -364,141 +371,141 @@ A: 可以尝试数据采样或分割文件，也可以使用Parquet格式减小�
                 keywords=["错误", "问题", "解决", "故障", "排除"]
             )
         ]
-        
+
         for item in default_items:
             self.help_items[item.id] = item
-    
-    def get_item(self, item_id: str) -> Optional[HelpItem]:
+
+    def get_item(self, item_id: str) -> HelpItem | None:
         """获取帮助项目"""
         return self.help_items.get(item_id)
-    
-    def search_items(self, query: str) -> List[HelpItem]:
+
+    def search_items(self, query: str) -> list[HelpItem]:
         """搜索帮助项目"""
         query_lower = query.lower()
         results = []
-        
+
         for item in self.help_items.values():
             # 搜索标题
             if query_lower in item.title.lower():
                 results.append(item)
                 continue
-            
+
             # 搜索关键词
             if any(query_lower in keyword.lower() for keyword in item.keywords):
                 results.append(item)
                 continue
-            
+
             # 搜索内容
             if query_lower in item.content.lower():
                 results.append(item)
-        
+
         return results
-    
-    def get_by_category(self, category: HelpCategory) -> List[HelpItem]:
+
+    def get_by_category(self, category: HelpCategory) -> list[HelpItem]:
         """按类别获取帮助项目"""
         return [item for item in self.help_items.values() if item.category == category]
 
 
 class HelpDialog(QDialog, LoggerMixin):
     """帮助对话框"""
-    
+
     def __init__(self, parent=None, initial_topic: str = None):
         if HAS_PYQT6:
             super().__init__(parent)
         else:
             QDialog.__init__(self, parent)
             LoggerMixin.__init__(self)
-        
+
         self.help_content = HelpContent()
         self.setWindowTitle("帮助文档")
         self.setMinimumSize(900, 600)
         self.setup_ui()
-        
+
         if initial_topic:
             self.show_topic(initial_topic)
-    
+
     def setup_ui(self):
         """设置界面"""
         if not HAS_PYQT6:
             return
-        
+
         layout = QHBoxLayout(self)
-        
+
         # 创建分割器
         splitter = QSplitter(Qt.Orientation.Horizontal)
         layout.addWidget(splitter)
-        
+
         # 左侧：导航树
         self.setup_navigation(splitter)
-        
+
         # 右侧：内容显示
         self.setup_content_area(splitter)
-        
+
         # 设置分割比例
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
         splitter.setSizes([250, 650])
-    
+
     def setup_navigation(self, parent):
         """设置导航区域"""
         nav_widget = QWidget()
         nav_layout = QVBoxLayout(nav_widget)
-        
+
         # 导航树
         self.nav_tree = QTreeWidget()
         self.nav_tree.setHeaderLabel("帮助主题")
         self.nav_tree.itemClicked.connect(self.on_nav_item_clicked)
-        
+
         # 添加类别和项目
         self.populate_navigation()
-        
+
         nav_layout.addWidget(self.nav_tree)
         parent.addWidget(nav_widget)
-    
+
     def setup_content_area(self, parent):
         """设置内容区域"""
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        
+
         # 内容浏览器
         self.content_browser = QTextBrowser()
         self.content_browser.setOpenExternalLinks(True)
         content_layout.addWidget(self.content_browser)
-        
+
         # 按钮区域
         button_layout = QHBoxLayout()
-        
+
         self.back_button = QPushButton("返回")
         self.back_button.clicked.connect(self.content_browser.backward)
         self.back_button.setEnabled(False)
-        
+
         self.forward_button = QPushButton("前进")
         self.forward_button.clicked.connect(self.content_browser.forward)
         self.forward_button.setEnabled(False)
-        
+
         self.close_button = QPushButton("关闭")
         self.close_button.clicked.connect(self.close)
-        
+
         button_layout.addWidget(self.back_button)
         button_layout.addWidget(self.forward_button)
         button_layout.addStretch()
         button_layout.addWidget(self.close_button)
-        
+
         content_layout.addLayout(button_layout)
-        
+
         # 连接导航信号
         self.content_browser.backwardAvailable.connect(self.back_button.setEnabled)
         self.content_browser.forwardAvailable.connect(self.forward_button.setEnabled)
-        
+
         parent.addWidget(content_widget)
-    
+
     def populate_navigation(self):
         """填充导航树"""
         if not HAS_PYQT6:
             return
-        
+
         category_items = {}
-        
+
         # 创建类别节点
         for category in HelpCategory:
             category_name = self.get_category_display_name(category)
@@ -506,17 +513,17 @@ class HelpDialog(QDialog, LoggerMixin):
             category_item.setData(0, Qt.ItemDataRole.UserRole, f"category_{category.value}")
             self.nav_tree.addTopLevelItem(category_item)
             category_items[category] = category_item
-        
+
         # 添加帮助项目
         for item in self.help_content.help_items.values():
             if item.category in category_items:
                 item_widget = QTreeWidgetItem([item.title])
                 item_widget.setData(0, Qt.ItemDataRole.UserRole, item.id)
                 category_items[item.category].addChild(item_widget)
-        
+
         # 展开所有类别
         self.nav_tree.expandAll()
-    
+
     def get_category_display_name(self, category: HelpCategory) -> str:
         """获取类别显示名称"""
         names = {
@@ -530,21 +537,21 @@ class HelpDialog(QDialog, LoggerMixin):
             HelpCategory.FAQ: "常见问题"
         }
         return names.get(category, category.value)
-    
+
     def on_nav_item_clicked(self, item, column):
         """导航项目点击事件"""
         if not HAS_PYQT6:
             return
-        
+
         item_data = item.data(0, Qt.ItemDataRole.UserRole)
         if item_data and not item_data.startswith("category_"):
             self.show_topic(item_data)
-    
+
     def show_topic(self, topic_id: str):
         """显示帮助主题"""
         if not HAS_PYQT6:
             return
-        
+
         help_item = self.help_content.get_item(topic_id)
         if help_item:
             self.content_browser.setHtml(help_item.content)
@@ -553,65 +560,65 @@ class HelpDialog(QDialog, LoggerMixin):
 
 class ToolTipManager(LoggerMixin):
     """工具提示管理器"""
-    
+
     def __init__(self):
         super().__init__()
         self.tooltip_data = self._load_tooltip_data()
-    
-    def _load_tooltip_data(self) -> Dict[str, str]:
+
+    def _load_tooltip_data(self) -> dict[str, str]:
         """加载工具提示数据"""
         return {
             # 数据上传相关
             "upload_button": "点击选择要分析的数据文件，支持CSV、Excel、Parquet格式",
             "file_drag_area": "将数据文件拖拽到此区域进行上传",
             "encoding_selector": "选择文件的文本编码格式，通常使用UTF-8",
-            
+
             # 分析配置相关
             "descriptive_stats_checkbox": "勾选以计算数据的描述性统计指标（均值、标准差等）",
             "correlation_checkbox": "勾选以分析变量之间的相关关系",
             "outlier_detection_checkbox": "勾选以检测数据中的异常值",
             "outlier_method_combo": "选择异常值检测方法：Z-score基于标准差，IQR基于四分位距",
             "outlier_threshold_spin": "设置异常值检测的阈值，数值越小检测越严格",
-            
+
             # 结果查看相关
             "stats_table": "显示各变量的描述性统计结果，包括均值、标准差、分位数等",
             "correlation_heatmap": "相关性热力图，颜色深浅表示相关强度",
             "chart_export_button": "导出当前图表为图片文件",
-            
+
             # 通用操作
             "start_analysis_button": "开始执行数据分析，请确保已上传数据并配置参数",
             "export_report_button": "导出完整的分析报告，包括统计结果和图表",
             "clear_data_button": "清除当前数据，准备分析新的数据集",
-            
+
             # 设置相关
             "theme_selector": "选择应用程序的视觉主题",
             "language_selector": "选择界面显示语言",
             "memory_limit_spin": "设置最大内存使用限制，防止系统卡顿",
-            
+
             # 错误和警告
             "file_size_warning": "文件较大，处理时间可能较长，建议启用数据采样",
             "memory_warning": "内存使用较高，建议关闭其他程序或减小数据集",
             "no_numeric_columns": "数据中没有数值列，无法进行数值分析",
         }
-    
+
     def get_tooltip(self, widget_id: str) -> str:
         """获取工具提示文本"""
         return self.tooltip_data.get(widget_id, "")
-    
+
     def set_tooltip(self, widget, widget_id: str):
         """为控件设置工具提示"""
         if not HAS_PYQT6:
             return
-        
+
         tooltip_text = self.get_tooltip(widget_id)
         if tooltip_text and hasattr(widget, 'setToolTip'):
             widget.setToolTip(tooltip_text)
-    
+
     def show_contextual_tip(self, widget, message: str, duration: int = 3000):
         """显示上下文提示"""
         if not HAS_PYQT6:
             return
-        
+
         try:
             # 获取控件的全局位置
             global_pos = widget.mapToGlobal(QPoint(0, widget.height() + 5))
@@ -622,27 +629,27 @@ class ToolTipManager(LoggerMixin):
 
 class QuickStartGuide(QDialog, LoggerMixin):
     """快速入门引导"""
-    
+
     def __init__(self, parent=None):
         if HAS_PYQT6:
             super().__init__(parent)
         else:
             QDialog.__init__(self, parent)
             LoggerMixin.__init__(self)
-        
+
         self.current_step = 0
         self.total_steps = 4
         self.setWindowTitle("快速入门引导")
         self.setFixedSize(600, 400)
         self.setup_ui()
-    
+
     def setup_ui(self):
         """设置界面"""
         if not HAS_PYQT6:
             return
-        
+
         layout = QVBoxLayout(self)
-        
+
         # 标题
         title_label = QLabel("欢迎使用数据分析应用")
         title_font = QFont()
@@ -651,42 +658,42 @@ class QuickStartGuide(QDialog, LoggerMixin):
         title_label.setFont(title_font)
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
-        
+
         # 内容区域
         self.content_widget = QTabWidget()
         self.setup_guide_steps()
         layout.addWidget(self.content_widget)
-        
+
         # 按钮区域
         button_layout = QHBoxLayout()
-        
+
         self.prev_button = QPushButton("上一步")
         self.prev_button.clicked.connect(self.prev_step)
         self.prev_button.setEnabled(False)
-        
+
         self.next_button = QPushButton("下一步")
         self.next_button.clicked.connect(self.next_step)
-        
+
         self.finish_button = QPushButton("完成")
         self.finish_button.clicked.connect(self.close)
         self.finish_button.setVisible(False)
-        
+
         self.skip_button = QPushButton("跳过引导")
         self.skip_button.clicked.connect(self.close)
-        
+
         button_layout.addWidget(self.prev_button)
         button_layout.addWidget(self.next_button)
         button_layout.addWidget(self.finish_button)
         button_layout.addStretch()
         button_layout.addWidget(self.skip_button)
-        
+
         layout.addLayout(button_layout)
-    
+
     def setup_guide_steps(self):
         """设置引导步骤"""
         if not HAS_PYQT6:
             return
-        
+
         steps = [
             {
                 "title": "步骤 1: 数据上传",
@@ -753,48 +760,48 @@ class QuickStartGuide(QDialog, LoggerMixin):
                 """
             }
         ]
-        
-        for i, step in enumerate(steps):
+
+        for _, step in enumerate(steps):
             scroll_area = QScrollArea()
             content_widget = QWidget()
             content_layout = QVBoxLayout(content_widget)
-            
+
             content_browser = QTextBrowser()
             content_browser.setHtml(step["content"])
             content_layout.addWidget(content_browser)
-            
+
             scroll_area.setWidget(content_widget)
             scroll_area.setWidgetResizable(True)
-            
+
             self.content_widget.addTab(scroll_area, step["title"])
-    
+
     def next_step(self):
         """下一步"""
         if not HAS_PYQT6:
             return
-        
+
         if self.current_step < self.total_steps - 1:
             self.current_step += 1
             self.content_widget.setCurrentIndex(self.current_step)
             self.update_buttons()
-    
+
     def prev_step(self):
         """上一步"""
         if not HAS_PYQT6:
             return
-        
+
         if self.current_step > 0:
             self.current_step -= 1
             self.content_widget.setCurrentIndex(self.current_step)
             self.update_buttons()
-    
+
     def update_buttons(self):
         """更新按钮状态"""
         if not HAS_PYQT6:
             return
-        
+
         self.prev_button.setEnabled(self.current_step > 0)
-        
+
         if self.current_step >= self.total_steps - 1:
             self.next_button.setVisible(False)
             self.finish_button.setVisible(True)
@@ -808,7 +815,7 @@ def show_help_dialog(parent=None, topic: str = None):
     if not HAS_PYQT6:
         print(f"帮助主题: {topic or '主帮助'}")
         return None
-    
+
     dialog = HelpDialog(parent, topic)
     dialog.show()
     return dialog
@@ -819,7 +826,7 @@ def show_quick_start_guide(parent=None):
     if not HAS_PYQT6:
         print("快速入门引导")
         return None
-    
+
     guide = QuickStartGuide(parent)
     guide.exec()
     return guide
