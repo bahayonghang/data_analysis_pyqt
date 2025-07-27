@@ -251,6 +251,8 @@ class ApplicationIntegrator(QObject, LoggerMixin):
         self.current_data: Any | None = None
         self.current_file_path: str | None = None
         self.current_time_column: str | None = None
+        self.current_analysis_result: Any | None = None
+        self.current_file_info: Any | None = None
 
         self.logger.info("应用程序集成器初始化完成")
 
@@ -359,10 +361,12 @@ class ApplicationIntegrator(QObject, LoggerMixin):
 
             # 上传页面信号
             if self.upload_page:
-                if hasattr(self.upload_page, 'data_loaded'):
-                    self.upload_page.data_loaded.connect(self._on_data_loaded)
-                if hasattr(self.upload_page, 'upload_completed'):
-                    self.upload_page.upload_completed.connect(self._on_upload_completed)
+                if hasattr(self.upload_page, 'file_uploaded'):
+                    self.upload_page.file_uploaded.connect(self._on_file_uploaded)
+                if hasattr(self.upload_page, 'analysis_completed'):
+                    self.upload_page.analysis_completed.connect(self._on_upload_analysis_completed)
+                if hasattr(self.upload_page, 'upload_failed'):
+                    self.upload_page.upload_failed.connect(self._on_upload_failed)
 
             # 分析页面信号
             if self.analysis_page:
@@ -411,17 +415,43 @@ class ApplicationIntegrator(QObject, LoggerMixin):
         except Exception as e:
             self.logger.error(f"数据加载处理失败: {str(e)}")
 
-    def _on_upload_completed(self, file_path: str):
-        """处理上传完成"""
+    def _on_file_uploaded(self, file_info):
+        """处理文件上传完成"""
         try:
-            # 导航到分析页面
+            self.logger.info(f"文件上传完成: {file_info.file_name if hasattr(file_info, 'file_name') else 'unknown'}")
+        except Exception as e:
+            self.logger.error(f"文件上传处理失败: {str(e)}")
+
+    def _on_upload_analysis_completed(self, analysis_result, file_info):
+        """处理上传页面的分析完成"""
+        try:
+            # 保存当前分析结果
+            self.current_analysis_result = analysis_result
+            self.current_file_info = file_info
+
+            # 将分析结果传递给分析页面
+            if self.analysis_page and hasattr(self.analysis_page, 'load_analysis_result'):
+                self.analysis_page.load_analysis_result(analysis_result, file_info)
+
+            # 导航到分析页面显示结果
             if self.main_window:
                 self.main_window.navigate_to(NavigationPage.ANALYSIS.value)
 
-            self.logger.info(f"上传完成，已导航到分析页面: {file_path}")
+            # 发出分析完成信号
+            self.analysis_completed.emit(analysis_result)
+
+            self.logger.info(f"上传分析完成，已导航到分析页面: {file_info.file_name if hasattr(file_info, 'file_name') else 'unknown'}")
 
         except Exception as e:
-            self.logger.error(f"上传完成处理失败: {str(e)}")
+            self.logger.error(f"上传分析完成处理失败: {str(e)}")
+
+    def _on_upload_failed(self, error_message: str):
+        """处理上传失败"""
+        try:
+            self.logger.error(f"上传失败: {error_message}")
+            # 可以在这里添加错误提示UI
+        except Exception as e:
+            self.logger.error(f"上传失败处理失败: {str(e)}")
 
     def _on_analysis_started(self):
         """处理分析开始"""

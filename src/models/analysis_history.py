@@ -15,6 +15,14 @@ from ..utils.basic_logging import LoggerMixin
 from ..utils.exceptions import AnalysisError
 
 
+class DateTimeEncoder(json.JSONEncoder):
+    """自定义JSON编码器，用于处理datetime对象"""
+    def default(self, obj):
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        return super().default(obj)
+
+
 class AnalysisStatus(str, Enum):
     """分析状态枚举"""
     PENDING = "pending"
@@ -180,10 +188,10 @@ class AnalysisHistoryDB(LoggerMixin):
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
                 
-                # 序列化复杂字段
-                analysis_config_json = json.dumps(record.analysis_config)
-                result_summary_json = json.dumps(record.result_summary) if record.result_summary else None
-                chart_files_json = json.dumps(record.chart_files)
+                # 序列化复杂字段，使用自定义编码器处理datetime对象
+                analysis_config_json = json.dumps(record.analysis_config, cls=DateTimeEncoder)
+                result_summary_json = json.dumps(record.result_summary, cls=DateTimeEncoder) if record.result_summary else None
+                chart_files_json = json.dumps(record.chart_files, cls=DateTimeEncoder)
                 
                 if record.id is None:
                     # 插入新记录

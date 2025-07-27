@@ -175,18 +175,18 @@ class NavigationManager(QObject, LoggerMixin):
                         # 更新导航状态
                         old_page = self.current_page.value if isinstance(self.current_page, NavigationPage) else self.current_page
                         self.current_page = page_id
-                        
+
                         # 切换页面内容
                         if self.page_container:
                             self.page_container.show_page(page_id)
-                        
+
                         # 发出信号
                         self.pageChanged.emit(old_page, page_id)
-                        
+
                         self.logger.info(f"通过导航点击切换到页面: {page_id}")
                     except Exception as e:
                         self.logger.error(f"页面点击处理失败: {page_id}, 错误: {str(e)}")
-                
+
                 # 根据qfluentwidgets文档，addItem的正确参数顺序
                 # NavigationInterface.addItem(routeKey, icon, text, onClick, position)
                 self.navigation.addItem(

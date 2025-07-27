@@ -146,14 +146,13 @@ except ImportError:
         SYNC = "sync"
         SETTING = "setting"
 
-from ..utils.icon_utils import safe_set_icon
-
 from ..models.analysis_history import (
     AnalysisHistoryDB,
     AnalysisHistoryRecord,
     AnalysisStatus,
 )
 from ..utils.basic_logging import LoggerMixin
+from ..utils.icon_utils import safe_set_icon
 
 
 class HistoryFilterType(str, Enum):
@@ -1018,6 +1017,6 @@ def create_history_page(config: HistoryPageConfig | None = None) -> HistoryPage:
         import traceback
         print(f"创建历史页面失败: {str(e)}")
         print(f"异常类型: {type(e).__name__}")
-        print(f"完整堆栈跟踪:")
+        print("完整堆栈跟踪:")
         traceback.print_exc()
         raise

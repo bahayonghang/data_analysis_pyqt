@@ -171,16 +171,38 @@ class HistoryManager(LoggerMixin):
     ) -> Optional[AnalysisHistoryRecord]:
         """查找已存在的分析记录"""
         try:
-            # 计算文件哈希和分析ID
+            # 计算文件哈希
             file_hash = self._calculate_file_hash(Path(file_path))
-            analysis_id = self._generate_analysis_id(file_hash, analysis_config, analysis_type, time_column)
             
-            # 查询数据库
-            record = self.db.get_record_by_analysis_id(analysis_id)
+            # 创建配置字符串用于匹配
+            config_str = json.dumps({
+                'correlation_method': analysis_config.correlation_method,
+                'outlier_method': analysis_config.outlier_method,
+                'outlier_threshold': analysis_config.outlier_threshold,
+                'analysis_type': analysis_type,
+                'time_column': time_column
+            }, sort_keys=True)
             
-            if record and record.status == AnalysisStatus.COMPLETED:
-                self.logger.info(f"找到已存在的分析: {analysis_id}")
-                return record
+            # 查询数据库中相同文件哈希和配置的已完成分析
+            records = self.db.get_records(status=AnalysisStatus.COMPLETED, limit=100)
+            
+            for record in records:
+                if (record.file_hash == file_hash and 
+                    record.analysis_type == analysis_type and
+                    record.time_column == time_column):
+                    # 比较分析配置
+                    if record.analysis_config:
+                        record_config_str = json.dumps({
+                            'correlation_method': record.analysis_config.get('correlation_method'),
+                            'outlier_method': record.analysis_config.get('outlier_method'),
+                            'outlier_threshold': record.analysis_config.get('outlier_threshold'),
+                            'analysis_type': analysis_type,
+                            'time_column': time_column
+                        }, sort_keys=True)
+                        
+                        if config_str == record_config_str:
+                            self.logger.info(f"找到已存在的分析: {record.analysis_id}")
+                            return record
             
             return None
             
@@ -338,8 +360,11 @@ class HistoryManager(LoggerMixin):
             'time_column': time_column
         }, sort_keys=True)
         
-        # 组合文件哈希和配置
-        combined = f"{file_hash}:{config_str}"
+        # 添加时间戳确保唯一性，避免重复分析时的ID冲突
+        timestamp = datetime.now().isoformat()
+        
+        # 组合文件哈希、配置和时间戳
+        combined = f"{file_hash}:{config_str}:{timestamp}"
         
         # 生成SHA256哈希
         analysis_hash = hashlib.sha256(combined.encode()).hexdigest()

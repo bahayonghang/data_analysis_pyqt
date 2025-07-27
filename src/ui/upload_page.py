@@ -83,6 +83,12 @@ except ImportError:
         ACCEPT = "accept"
         CANCEL = "cancel"
 
+from ..core.analysis_engine import AnalysisConfig, AnalysisEngine
+from ..core.chart_renderer import ChartRenderer, ChartStyle
+from ..core.history_manager import get_history_manager
+from ..data.data_loader import DataLoader, LoaderConfig
+from ..models.analysis_history import AnalysisStatus
+from ..models.extended_analysis_result import AnalysisResult
 from ..utils.basic_logging import LoggerMixin
 from ..utils.icon_utils import safe_set_icon
 
@@ -243,13 +249,14 @@ class FileValidator(LoggerMixin):
             return FileType.UNKNOWN
 
 
-class UploadWorker(QThread):
+class UploadWorker(QThread, LoggerMixin):
     """上传工作线程"""
 
     # 信号
     progress_updated = pyqtSignal(int, str)  # (progress, message)
     status_changed = pyqtSignal(str)  # UploadStatus
     file_loaded = pyqtSignal(object)  # FileInfo
+    analysis_completed = pyqtSignal(object, object)  # (AnalysisResult, FileInfo)
     error_occurred = pyqtSignal(str)  # error_message
 
     def __init__(self, file_info: FileInfo, config: UploadConfig):
@@ -258,36 +265,195 @@ class UploadWorker(QThread):
         self.config = config
         self._cancel_requested = False
 
+        # 初始化组件
+        self.data_loader = DataLoader(LoaderConfig())
+        self.analysis_engine = AnalysisEngine(AnalysisConfig())
+        self.chart_renderer = ChartRenderer()
+        self.history_manager = get_history_manager()
+
     def run(self):
-        """执行上传和加载"""
+        """执行完整的数据分析流程"""
+        import time
+        
         try:
+            # 记录开始时间
+            self.start_time = time.time()
+            
+            # 创建历史记录
+            analysis_config = AnalysisConfig(
+                correlation_method="pearson",
+                outlier_method="iqr",
+                outlier_threshold=3.0,
+                enable_parallel=True,
+                n_threads=2
+            )
+            
+            self.history_record = self.history_manager.create_record_from_data(
+                file_path=self.file_info.file_path,
+                analysis_config=analysis_config,
+                analysis_type="comprehensive"
+            )
+            self.history_record = self.history_manager.save_record(self.history_record)
+            self.history_record = self.history_manager.start_analysis(self.history_record)
+            
+            # 第一步：文件验证
+            self.status_changed.emit(UploadStatus.VALIDATING.value)
+            self.progress_updated.emit(5, "验证文件格式...")
+
+            if self._cancel_requested:
+                self.status_changed.emit(UploadStatus.CANCELLED.value)
+                return
+
+            # 第二步：数据加载
             self.status_changed.emit(UploadStatus.UPLOADING.value)
-            self.progress_updated.emit(0, "开始处理文件...")
+            self.progress_updated.emit(10, "开始加载数据...")
 
-            # 模拟文件读取进度
-            for i in range(0, 101, 10):
-                if self._cancel_requested:
-                    self.status_changed.emit(UploadStatus.CANCELLED.value)
-                    return
+            # 使用真实的DataLoader加载数据
+            data, quality_info = self.data_loader.load_file(self.file_info)
 
-                self.progress_updated.emit(i, f"读取文件... {i}%")
-                self.msleep(50)  # 模拟处理时间
+            # 更新文件信息
+            if hasattr(data, 'shape'):
+                self.file_info.row_count = data.shape[0]
+                self.file_info.column_count = data.shape[1]
+                self.file_info.columns = list(data.columns) if hasattr(data, 'columns') else []
 
-            # 这里应该集成实际的数据加载逻辑 (DataLoader)
-            # 现在先模拟数据信息
-            self.file_info.row_count = 1000
-            self.file_info.column_count = 5
-            self.file_info.columns = ["col1", "col2", "col3", "col4", "col5"]
-            self.file_info.time_columns = []
-            self.file_info.memory_usage = 50 * 1024  # 50KB
+            self.progress_updated.emit(30, "数据加载完成")
 
-            self.progress_updated.emit(100, "文件加载完成")
+            if self._cancel_requested:
+                self.status_changed.emit(UploadStatus.CANCELLED.value)
+                return
+
+            # 第三步：数据分析
+            self.status_changed.emit(UploadStatus.PROCESSING.value)
+            self.progress_updated.emit(40, "开始数据分析...")
+
+            # 配置分析参数
+            time_columns = getattr(self.file_info, 'time_columns', None) or []
+
+            # 执行分析
+            analysis_result = self.analysis_engine.analyze_dataset(
+                data,
+                time_column=time_columns[0] if time_columns else None,
+                exclude_columns=None
+            )
+
+            self.progress_updated.emit(70, "数据分析完成")
+
+            if self._cancel_requested:
+                self.status_changed.emit(UploadStatus.CANCELLED.value)
+                return
+
+            # 第四步：生成图表
+            self.progress_updated.emit(80, "生成可视化图表...")
+
+            # 生成基础图表
+            charts = self._generate_charts(data, analysis_result)
+            analysis_result.charts = charts
+
+            self.progress_updated.emit(90, "图表生成完成")
+
+            if self._cancel_requested:
+                self.status_changed.emit(UploadStatus.CANCELLED.value)
+                return
+
+            # 第五步：保存到历史记录
+            self.progress_updated.emit(95, "保存分析结果...")
+
+            # 创建并保存历史记录
+            if hasattr(self, 'history_record') and self.history_record:
+                # 完成分析并保存结果
+                execution_time = int((time.time() - self.start_time) * 1000) if hasattr(self, 'start_time') else 0
+                self.history_manager.complete_analysis(
+                    record=self.history_record,
+                    result=analysis_result,
+                    execution_time_ms=execution_time
+                )
+            else:
+                # 如果没有历史记录，创建一个新的
+                config = AnalysisConfig()
+                record = self.history_manager.create_record_from_data(
+                    file_path=self.file_info.file_path,
+                    analysis_config=config,
+                    analysis_type="comprehensive"
+                )
+                record = self.history_manager.save_record(record)
+                execution_time = int((time.time() - self.start_time) * 1000) if hasattr(self, 'start_time') else 0
+                self.history_manager.complete_analysis(
+                    record=record,
+                    result=analysis_result,
+                    execution_time_ms=execution_time
+                )
+
+            self.progress_updated.emit(100, "分析流程完成")
             self.status_changed.emit(UploadStatus.COMPLETED.value)
+
+            # 发出信号
             self.file_loaded.emit(self.file_info)
+            self.analysis_completed.emit(analysis_result, self.file_info)
 
         except Exception as e:
-            self.error_occurred.emit(str(e))
+            self.error_occurred.emit(f"分析过程出错: {str(e)}")
             self.status_changed.emit(UploadStatus.FAILED.value)
+
+            # 保存失败记录
+            try:
+                if hasattr(self, 'history_record') and self.history_record:
+                    # 标记分析失败
+                    execution_time = int((time.time() - self.start_time) * 1000) if hasattr(self, 'start_time') else 0
+                    self.history_manager.fail_analysis(
+                        record=self.history_record,
+                        error_message=str(e),
+                        execution_time_ms=execution_time
+                    )
+                else:
+                    # 如果没有历史记录，创建一个失败的记录
+                    config = AnalysisConfig()
+                    record = self.history_manager.create_record_from_data(
+                        file_path=self.file_info.file_path,
+                        analysis_config=config,
+                        analysis_type="comprehensive"
+                    )
+                    record = self.history_manager.save_record(record)
+                    execution_time = int((time.time() - self.start_time) * 1000) if hasattr(self, 'start_time') else 0
+                    self.history_manager.fail_analysis(
+                        record=record,
+                        error_message=str(e),
+                        execution_time_ms=execution_time
+                    )
+            except Exception:
+                pass  # 忽略历史记录保存失败
+
+    def _generate_charts(self, data, analysis_result):
+        """生成基础图表"""
+        charts = []
+
+        try:
+            # 生成数据分布图
+            if hasattr(data, 'select_dtypes'):
+                numeric_cols = data.select_dtypes(include=['number']).columns[:5]  # 最多5列
+                for col in numeric_cols:
+                    chart = self.chart_renderer.create_histogram(
+                        data[col],
+                        title=f"{col} 分布图",
+                        style=ChartStyle.MODERN
+                    )
+                    if chart:
+                        charts.append(chart)
+
+            # 生成相关性热力图
+            if hasattr(analysis_result, 'correlation_matrix') and analysis_result.correlation_matrix:
+                chart = self.chart_renderer.create_correlation_heatmap(
+                    analysis_result.correlation_matrix.matrix,
+                    analysis_result.correlation_matrix.columns,
+                    title="相关性分析"
+                )
+                if chart:
+                    charts.append(chart)
+
+        except Exception as e:
+            self.logger.warning(f"图表生成部分失败: {str(e)}")
+
+        return charts
 
     def cancel(self):
         """取消上传"""
@@ -551,6 +717,7 @@ class UploadPage(QWidget, LoggerMixin):
 
     # 信号
     file_uploaded = pyqtSignal(object)  # FileInfo
+    analysis_completed = pyqtSignal(object, object)  # (AnalysisResult, FileInfo)
     upload_failed = pyqtSignal(str)  # error_message
 
     def __init__(self, config: UploadConfig | None = None, parent=None):
@@ -560,6 +727,7 @@ class UploadPage(QWidget, LoggerMixin):
         self.upload_worker: UploadWorker | None = None
         self.current_file_info: FileInfo | None = None
         self.current_data: Any | None = None  # 存储加载的数据
+        self.current_analysis_result: AnalysisResult | None = None  # 存储分析结果
 
         self._setup_ui()
         self._setup_connections()
@@ -701,6 +869,7 @@ class UploadPage(QWidget, LoggerMixin):
                 lambda status: self.progress_widget.update_status(UploadStatus(status))
             )
             self.upload_worker.file_loaded.connect(self._on_file_loaded)
+            self.upload_worker.analysis_completed.connect(self._on_analysis_completed)
             self.upload_worker.error_occurred.connect(self._on_upload_error)
 
             # 开始上传
@@ -720,27 +889,42 @@ class UploadPage(QWidget, LoggerMixin):
         self.logger.info("用户取消上传")
 
     def _on_file_loaded(self, file_info: FileInfo):
-        """文件加载完成"""
+        """文件加载完成（仅更新文件信息）"""
         self.current_file_info = file_info
-        self.progress_widget.hide_progress()
-
-        # 模拟数据加载（这里应该集成实际的DataLoader）
-        self.current_data = self._create_mock_data(file_info)
 
         # 显示文件信息
         self._show_file_info(file_info)
 
-        # 显示数据预览
-        if self.current_data is not None:
-            try:
-                self.data_preview.load_file_data(file_info, self.current_data)
-                self.data_preview.show()
-            except Exception as e:
-                self.logger.error(f"加载数据预览失败: {str(e)}")
-                self._show_error(f"数据预览加载失败: {str(e)}")
+        self.logger.info(f"文件信息加载完成: {file_info.file_name}")
 
-        self.file_uploaded.emit(file_info)
-        self.logger.info(f"文件上传完成: {file_info.file_name}")
+    def _on_analysis_completed(self, analysis_result: AnalysisResult, file_info: FileInfo):
+        """分析完成处理"""
+        try:
+            self.current_file_info = file_info
+            self.current_analysis_result = analysis_result
+            self.progress_widget.hide_progress()
+
+            # 从分析结果中获取数据进行预览
+            if hasattr(analysis_result, 'raw_data') and analysis_result.raw_data is not None:
+                self.current_data = analysis_result.raw_data
+
+                # 显示数据预览
+                try:
+                    self.data_preview.load_file_data(file_info, self.current_data)
+                    self.data_preview.show()
+                except Exception as e:
+                    self.logger.error(f"加载数据预览失败: {str(e)}")
+                    self._show_error(f"数据预览加载失败: {str(e)}")
+
+            # 发出完成信号，包含分析结果
+            self.file_uploaded.emit(file_info)
+            self.analysis_completed.emit(analysis_result, file_info)
+
+            self.logger.info(f"完整分析流程完成: {file_info.file_name}")
+
+        except Exception as e:
+            self.logger.error(f"分析完成处理失败: {str(e)}")
+            self._show_error(f"分析结果处理失败: {str(e)}")
 
     def _create_mock_data(self, file_info: FileInfo) -> Any | None:
         """创建模拟数据（临时方法，后续将替换为实际数据加载）"""
