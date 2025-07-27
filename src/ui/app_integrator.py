@@ -16,19 +16,93 @@ except ImportError:
         return lambda *a, **k: None
 
 try:
-    from qfluentwidgets import FluentIcon, NavigationItemPosition
+    from qfluentwidgets import (
+        BodyLabel,
+        FluentIcon,
+        HeaderCardWidget,
+        NavigationItemPosition,
+        PrimaryPushButton,
+        TitleLabel,
+    )
     HAS_FLUENT_WIDGETS = True
 except ImportError:
     HAS_FLUENT_WIDGETS = False
+
+    # 备用枚举和组件
     class FluentIcon:
         HOME = "home"
         FOLDER = "folder"
+        DOCUMENT = "document"
         CHART = "chart"
         HISTORY = "history"
         SETTING = "setting"
+
     class NavigationItemPosition:
         TOP = "top"
         BOTTOM = "bottom"
+
+    # 备用UI组件
+    from PyQt6.QtWidgets import QFrame, QLabel, QPushButton
+
+    class TitleLabel(QLabel):
+        def __init__(self, text="", parent=None):
+            super().__init__(text, parent)
+            self.setStyleSheet("font-size: 24px; font-weight: bold; color: #333;")
+
+    class BodyLabel(QLabel):
+        def __init__(self, text="", parent=None):
+            super().__init__(text, parent)
+            self.setStyleSheet("font-size: 14px; color: #666; line-height: 1.5;")
+            self.setWordWrap(True)
+
+    class PrimaryPushButton(QPushButton):
+        def __init__(self, text="", parent=None):
+            super().__init__(text, parent)
+            self.setStyleSheet("""
+                QPushButton {
+                    background-color: #0078d4;
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                    font-size: 14px;
+                }
+                QPushButton:hover {
+                    background-color: #106ebe;
+                }
+                QPushButton:pressed {
+                    background-color: #005a9e;
+                }
+            """)
+
+        def setIcon(self, icon):
+            # 忽略图标设置，因为我们使用的是备用实现
+            pass
+
+    class HeaderCardWidget(QFrame):
+        def __init__(self, parent=None):
+            super().__init__(parent)
+            self.setFrameStyle(QFrame.Shape.Box)
+            self.setStyleSheet("""
+                QFrame {
+                    border: 1px solid #e0e0e0;
+                    border-radius: 8px;
+                    background-color: white;
+                    padding: 16px;
+                }
+            """)
+            from PyQt6.QtWidgets import QVBoxLayout
+            self.viewLayout = QVBoxLayout(self)
+            self.viewLayout.setContentsMargins(16, 16, 16, 16)
+            self._title_label = None
+
+        def setTitle(self, title):
+            if self._title_label is None:
+                self._title_label = QLabel(title)
+                self._title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #333; margin-bottom: 8px;")
+                self.viewLayout.insertWidget(0, self._title_label)
+            else:
+                self._title_label.setText(title)
 
 from ..utils.basic_logging import LoggerMixin, get_logger
 from ..utils.exceptions import ComponentInitializationError
@@ -44,13 +118,6 @@ class HomePage(QObject, LoggerMixin):
     def __init__(self, parent=None):
         super().__init__(parent)
         from PyQt6.QtWidgets import QVBoxLayout, QWidget
-        from qfluentwidgets import (
-            BodyLabel,
-            FluentIcon,
-            HeaderCardWidget,
-            PrimaryPushButton,
-            TitleLabel,
-        )
 
         self.widget = QWidget()
         layout = QVBoxLayout(self.widget)
@@ -70,10 +137,16 @@ class HomePage(QObject, LoggerMixin):
         welcome_layout = QVBoxLayout()
         welcome_layout.setContentsMargins(0, 0, 0, 0)
 
-        welcome_text = BodyLabel(
-            "这是一个基于PyQt6和Fluent Design的现代化数据分析工具。\n"
-            "支持CSV和Parquet格式的数据文件，提供全面的统计分析功能。"
-        )
+        if HAS_FLUENT_WIDGETS:
+            welcome_text = BodyLabel(
+                "这是一个基于PyQt6和Fluent Design的现代化数据分析工具。\n"
+                "支持CSV和Parquet格式的数据文件，提供全面的统计分析功能。"
+            )
+        else:
+            welcome_text = BodyLabel(
+                "这是一个基于PyQt6的数据分析工具。\n"
+                "支持CSV和Parquet格式的数据文件，提供全面的统计分析功能。"
+            )
         welcome_layout.addWidget(welcome_text)
 
         # 将布局添加到HeaderCardWidget的viewLayout
@@ -130,6 +203,8 @@ class HomePage(QObject, LoggerMixin):
         features_card.viewLayout.addLayout(features_layout)
         layout.addWidget(features_card)
         layout.addStretch()
+
+        self.logger.info(f"主页初始化完成，使用{'Fluent Widgets' if HAS_FLUENT_WIDGETS else 'PyQt6标准组件'}")
 
     # 信号
     navigate_requested = pyqtSignal(str)  # 导航请求
@@ -209,6 +284,7 @@ class ApplicationIntegrator(QObject, LoggerMixin):
         try:
             # 创建主页
             self.home_page = HomePage()
+
             self.main_window.add_page(
                 NavigationPage.HOME.value,
                 self.home_page.get_widget(),
@@ -224,6 +300,7 @@ class ApplicationIntegrator(QObject, LoggerMixin):
             upload_config.enable_drag_drop = True
 
             self.upload_page = create_upload_page(upload_config)
+
             self.main_window.add_page(
                 NavigationPage.UPLOAD.value,
                 self.upload_page,
@@ -241,6 +318,7 @@ class ApplicationIntegrator(QObject, LoggerMixin):
             analysis_config.enable_charts = True
 
             self.analysis_page = create_analysis_page(analysis_config)
+
             self.main_window.add_page(
                 NavigationPage.ANALYSIS.value,
                 self.analysis_page,
@@ -257,6 +335,7 @@ class ApplicationIntegrator(QObject, LoggerMixin):
             history_config.enable_export = True
 
             self.history_page = create_history_page(history_config)
+
             self.main_window.add_page(
                 NavigationPage.HISTORY.value,
                 self.history_page,

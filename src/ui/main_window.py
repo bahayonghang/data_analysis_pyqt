@@ -361,6 +361,7 @@ class PageContainer(QStackedWidget, LoggerMixin):
 
             # 添加到堆栈
             index = self.addWidget(widget)
+
             self.page_widgets[page_id] = widget
 
             # 设置页面属性
@@ -753,16 +754,19 @@ class MainWindow(MSFluentWindow, LoggerMixin):
         try:
             # 替换默认的stacked widget
             self.page_container = PageContainer()
+
             self.page_container.animation_enabled = self.config.enable_page_animation
             self.page_container.animation_duration = self.config.page_transition_duration
 
             # 替换现有的stackedWidget
             old_stacked = self.stackedWidget
-            layout = old_stacked.parent().layout()
+            layout = old_stacked.parent().layout() if old_stacked.parent() else None
 
             if layout:
                 layout.replaceWidget(old_stacked, self.page_container)
                 old_stacked.deleteLater()
+                self.stackedWidget = self.page_container
+            else:
                 self.stackedWidget = self.page_container
 
             self.logger.info("页面容器初始化完成")
@@ -779,7 +783,7 @@ class MainWindow(MSFluentWindow, LoggerMixin):
                 self.navigation_manager.pageChanged.connect(self._on_page_changed)
 
             # 连接页面容器信号
-            if self.page_container:
+            if self.page_container is not None:
                 self.page_container.pageTransitionStarted.connect(self._on_page_transition_started)
                 self.page_container.pageTransitionFinished.connect(self._on_page_transition_finished)
                 self.page_container.layoutChanged.connect(self._on_layout_changed)
@@ -800,7 +804,7 @@ class MainWindow(MSFluentWindow, LoggerMixin):
 
     def _on_layout_changed(self, new_size: QSize):
         """布局变化处理"""
-        if self.page_container:
+        if self.page_container is not None:
             layout_mode = self.page_container.get_layout_mode()
             self.logger.debug(f"布局模式: {layout_mode}, 窗口大小: {new_size.width()}x{new_size.height()}")
 
@@ -808,7 +812,7 @@ class MainWindow(MSFluentWindow, LoggerMixin):
         """页面改变处理"""
         try:
             # 显示新页面
-            if self.page_container:
+            if self.page_container is not None:
                 self.page_container.show_page(new_page)
 
             # 更新当前页面ID
@@ -855,7 +859,7 @@ class MainWindow(MSFluentWindow, LoggerMixin):
         """添加页面"""
         try:
             # 添加到页面容器
-            if self.page_container:
+            if self.page_container is not None:
                 self.page_container.add_page(page_id, widget)
 
             # 添加到导航管理器
@@ -886,7 +890,7 @@ class MainWindow(MSFluentWindow, LoggerMixin):
     def show_page(self, page_id: str):
         """显示指定页面"""
         try:
-            if self.page_container:
+            if self.page_container is not None:
                 self.page_container.show_page(page_id)
             self.current_page_id = page_id
             self.logger.info(f"显示页面: {page_id}")
@@ -898,7 +902,7 @@ class MainWindow(MSFluentWindow, LoggerMixin):
         """移除页面"""
         try:
             # 从页面容器移除
-            if self.page_container:
+            if self.page_container is not None:
                 self.page_container.remove_page(page_id)
 
             # 从导航管理器移除
@@ -917,30 +921,30 @@ class MainWindow(MSFluentWindow, LoggerMixin):
 
     def _add_to_history(self, page_id: str):
         """添加页面到历史记录"""
-        if self.page_container:
+        if self.page_container is not None:
             self.page_container._add_to_history(page_id)
 
     def go_back(self) -> bool:
         """返回上一页"""
-        if self.page_container:
+        if self.page_container is not None:
             return self.page_container.go_back()
         return False
 
     def get_page_history(self) -> list[str]:
         """获取页面历史"""
-        if self.page_container:
+        if self.page_container is not None:
             return self.page_container.get_page_history()
         return []
 
     def get_layout_mode(self) -> str:
         """获取当前布局模式"""
-        if self.page_container:
+        if self.page_container is not None:
             return self.page_container.get_layout_mode()
         return 'desktop'
 
     def set_responsive_breakpoints(self, **breakpoints):
         """设置响应式断点"""
-        if self.page_container:
+        if self.page_container is not None:
             self.page_container.set_breakpoints(**breakpoints)
 
     def closeEvent(self, event):
