@@ -90,27 +90,63 @@ except ImportError:
     class CardWidget:
         pass
     class HeaderCardWidget:
-        pass
+        def setTitle(self, title):
+            pass
+        @property
+        def viewLayout(self):
+            return QVBoxLayout()
     class PrimaryPushButton:
         pass
+    class PushButton:
+        pass
+    class ToolButton:
+        pass
     class BodyLabel:
+        pass
+    class StrongBodyLabel:
+        pass
+    class CaptionLabel:
+        pass
+    class TitleLabel:
         pass
     class LineEdit:
         pass
     class ComboBox:
-        pass
+        def addItem(self, text, data=None):
+            pass
+        def currentData(self):
+            return None
     class TableWidget:
         pass
     class SearchLineEdit:
+        def setPlaceholderText(self, text):
+            pass
+    class SimpleCardWidget:
         pass
-    class FluentIcon:
+    class PlainTextEdit:
+        def setPlainText(self, text):
+            pass
+        def setMaximumHeight(self, height):
+            pass
+    class InfoBar:
+        @staticmethod
+        def error(*args, **kwargs):
+            pass
+        @staticmethod
+        def success(*args, **kwargs):
+            pass
+    class InfoBarPosition:
+        TOP = "top"
+    class FluentIcon(Enum):
         HISTORY = "history"
         SEARCH = "search"
         FILTER = "filter"
         DELETE = "delete"
         DOWNLOAD = "download"
-        REFRESH = "refresh"
+        SYNC = "sync"
         SETTING = "setting"
+
+from ..utils.icon_utils import safe_set_icon
 
 from ..models.analysis_history import (
     AnalysisHistoryDB,
@@ -423,7 +459,7 @@ class HistoryPage(QWidget, LoggerMixin):
         # 刷新按钮
         if HAS_FLUENT_WIDGETS:
             self.refresh_btn = ToolButton()
-            self.refresh_btn.setIcon(FluentIcon.FOLDER)
+            safe_set_icon(self.refresh_btn, FluentIcon.SYNC)
         else:
             self.refresh_btn = QPushButton("刷新")
         self.refresh_btn.setToolTip("刷新记录列表")
@@ -502,7 +538,7 @@ class HistoryPage(QWidget, LoggerMixin):
         if self.config.enable_export:
             if HAS_FLUENT_WIDGETS:
                 self.export_btn = PushButton("导出")
-                self.export_btn.setIcon(FluentIcon.FOLDER)
+                safe_set_icon(self.export_btn, FluentIcon.DOWNLOAD)
             else:
                 self.export_btn = QPushButton("导出")
             layout.addWidget(self.export_btn)
@@ -510,7 +546,7 @@ class HistoryPage(QWidget, LoggerMixin):
         if self.config.enable_delete:
             if HAS_FLUENT_WIDGETS:
                 self.delete_btn = PushButton("删除选中")
-                self.delete_btn.setIcon(FluentIcon.FOLDER)
+                safe_set_icon(self.delete_btn, FluentIcon.DELETE)
             else:
                 self.delete_btn = QPushButton("删除选中")
             self.delete_btn.setEnabled(False)
@@ -974,7 +1010,14 @@ class HistoryPage(QWidget, LoggerMixin):
 def create_history_page(config: HistoryPageConfig | None = None) -> HistoryPage:
     """创建历史页面的工厂函数"""
     try:
-        return HistoryPage(config)
+        print("开始创建历史页面...")
+        page = HistoryPage(config)
+        print("历史页面创建成功")
+        return page
     except Exception as e:
+        import traceback
         print(f"创建历史页面失败: {str(e)}")
+        print(f"异常类型: {type(e).__name__}")
+        print(f"完整堆栈跟踪:")
+        traceback.print_exc()
         raise

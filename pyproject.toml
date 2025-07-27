@@ -1,11 +1,11 @@
 [project]
 name = "data-analysis-pyqt"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modern data analysis software built with PyQt6 and Polars"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [
-    {name = "Data Analysis Team", email = "team@example.com"}
+    {name = "Yonghang Li", email = "bahayonghang@gmail.com"}
 ]
 license = {text = "MIT"}
 keywords = ["data-analysis", "pyqt6", "polars", "desktop-app", "statistics"]
@@ -123,6 +123,10 @@ dev-dependencies = [
     "mypy>=1.5.0",
     "ruff>=0.1.0"
 ]
+
+default-groups = "all"
+# index-url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"  # 清华源
+index-url = "https://mirrors.aliyun.com/pypi/simple"                      # 阿里源
 
 # 注意：uv 脚本配置已移除，因为不是所有 uv 版本都支持
 # 请直接使用：

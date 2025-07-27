@@ -133,13 +133,21 @@ def exception_handler(
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
     
+    # 格式化完整的堆栈跟踪
+    tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+    full_traceback = "".join(tb_lines)
+    
     logger.critical(
-        f"Uncaught exception: {exc_value}",
+        f"Uncaught exception: {exc_value}\n{full_traceback}",
         extra={
             "exception_type": exc_type.__name__,
-            "traceback": "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+            "traceback": full_traceback
         }
     )
+    
+    # 同时输出到控制台以便调试
+    print(f"CRITICAL ERROR: {exc_value}")
+    print(f"Full traceback:\n{full_traceback}")
     
     # 在GUI应用中，显示错误对话框
     if HAS_PYQT:

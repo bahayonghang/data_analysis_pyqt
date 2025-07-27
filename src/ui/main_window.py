@@ -144,10 +144,16 @@ class NavigationManager(QObject, LoggerMixin):
         self.current_page = NavigationPage.HOME
         self.page_widgets: dict[str, Any] = {}  # 使用Any避免QWidget导入问题
         self.page_routes: dict[str, str] = {}
+        self.page_container = None  # 页面容器引用，用于onClick处理
 
         # 连接信号（仅在PyQt6可用时）
         if HAS_PYQT6 and hasattr(self.navigation, 'currentItemChanged'):
             self.navigation.currentItemChanged.connect(self._on_current_item_changed)
+
+    def set_page_container(self, page_container):
+        """设置页面容器引用"""
+        self.page_container = page_container
+        self.logger.info("页面容器引用已设置")
 
     def add_page(
         self,
@@ -160,25 +166,39 @@ class NavigationManager(QObject, LoggerMixin):
         """添加页面"""
         try:
             # 添加到导航界面（仅在Fluent Widgets可用时）
+            # NavigationInterface使用addItem方法添加导航项
             if HAS_FLUENT_WIDGETS and hasattr(self.navigation, 'addItem'):
                 # 创建点击事件处理函数，用于切换页面
-                # 简化：直接使用setCurrentItem来触发页面切换
-                # qfluentwidgets的导航系统会自动处理后续的信号和页面切换
-                if icon:
-                    self.navigation.addItem(
-                        routeKey=page_id,
-                        icon=icon,
-                        text=text,
-                        onClick=lambda: self.navigation.setCurrentItem(page_id),
-                        position=position or NavigationItemPosition.TOP
-                    )
-                else:
-                    self.navigation.addItem(
-                        routeKey=page_id,
-                        text=text,
-                        onClick=lambda: self.navigation.setCurrentItem(page_id),
-                        position=position or NavigationItemPosition.TOP
-                    )
+                def on_page_click():
+                    """页面点击处理函数"""
+                    try:
+                        # 更新导航状态
+                        old_page = self.current_page.value if isinstance(self.current_page, NavigationPage) else self.current_page
+                        self.current_page = page_id
+                        
+                        # 切换页面内容
+                        if self.page_container:
+                            self.page_container.show_page(page_id)
+                        
+                        # 发出信号
+                        self.pageChanged.emit(old_page, page_id)
+                        
+                        self.logger.info(f"通过导航点击切换到页面: {page_id}")
+                    except Exception as e:
+                        self.logger.error(f"页面点击处理失败: {page_id}, 错误: {str(e)}")
+                
+                # 根据qfluentwidgets文档，addItem的正确参数顺序
+                # NavigationInterface.addItem(routeKey, icon, text, onClick, position)
+                self.navigation.addItem(
+                    routeKey=page_id,  # routeKey
+                    icon=icon,         # icon (FluentIcon枚举值或None)
+                    text=text,         # text
+                    onClick=on_page_click,  # onClick函数
+                    position=position or NavigationItemPosition.TOP  # position
+                )
+            elif HAS_FLUENT_WIDGETS:
+                # 如果没有addItem方法，记录警告
+                self.logger.warning(f"NavigationInterface没有addItem方法，页面 {page_id} 无法添加到导航")
 
             # 注册页面
             self.page_widgets[page_id] = widget
@@ -199,8 +219,13 @@ class NavigationManager(QObject, LoggerMixin):
             old_page = self.current_page.value if isinstance(self.current_page, NavigationPage) else self.current_page
             self.current_page = page_id
 
-            # 设置当前项
-            self.navigation.setCurrentItem(page_id)
+            # 切换页面内容
+            if self.page_container:
+                self.page_container.show_page(page_id)
+
+            # 更新导航状态（不触发onClick）
+            if hasattr(self.navigation, 'setCurrentItem'):
+                self.navigation.setCurrentItem(page_id)
 
             # 发出信号
             self.pageChanged.emit(old_page, page_id)
@@ -768,6 +793,10 @@ class MainWindow(MSFluentWindow, LoggerMixin):
                 self.stackedWidget = self.page_container
             else:
                 self.stackedWidget = self.page_container
+
+            # 设置导航管理器的页面容器引用
+            if self.navigation_manager:
+                self.navigation_manager.set_page_container(self.page_container)
 
             self.logger.info("页面容器初始化完成")
 

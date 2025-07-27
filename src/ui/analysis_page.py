@@ -142,6 +142,7 @@ from ..export.export_manager import ExportManager
 from ..models.analysis_history import AnalysisHistoryRecord, AnalysisStatus
 from ..models.extended_analysis_result import AnalysisResult
 from ..utils.basic_logging import LoggerMixin
+from ..utils.icon_utils import safe_set_icon
 
 
 @dataclass
@@ -1209,7 +1210,7 @@ class AnalysisPage(QWidget, LoggerMixin):
         # 开始分析按钮
         if HAS_FLUENT_WIDGETS:
             self.start_btn = PrimaryPushButton("开始分析")
-            self.start_btn.setIcon(FluentIcon.PLAY)
+            safe_set_icon(self.start_btn, FluentIcon.PLAY)
         else:
             self.start_btn = QPushButton("开始分析")
         self.start_btn.setEnabled(False)
@@ -1234,7 +1235,7 @@ class AnalysisPage(QWidget, LoggerMixin):
         # 导出按钮
         if HAS_FLUENT_WIDGETS:
             self.export_btn = PushButton("导出报告")
-            self.export_btn.setIcon(FluentIcon.DOWNLOAD)
+            safe_set_icon(self.export_btn, FluentIcon.DOWNLOAD)
         else:
             self.export_btn = QPushButton("导出报告")
         self.export_btn.setEnabled(False)

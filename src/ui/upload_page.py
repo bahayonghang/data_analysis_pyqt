@@ -84,6 +84,7 @@ except ImportError:
         CANCEL = "cancel"
 
 from ..utils.basic_logging import LoggerMixin
+from ..utils.icon_utils import safe_set_icon
 
 try:
     import pandas as pd
@@ -351,7 +352,7 @@ class DragDropArea(QFrame, LoggerMixin):
         # 选择文件按钮
         if HAS_FLUENT_WIDGETS:
             self.select_btn = PrimaryPushButton("选择文件")
-            self.select_btn.setIcon(FluentIcon.FOLDER)
+            safe_set_icon(self.select_btn, FluentIcon.FOLDER)
         else:
             self.select_btn = QPushButton("选择文件")
         self.select_btn.setObjectName("selectBtn")
@@ -477,7 +478,7 @@ class UploadProgressWidget(QWidget, LoggerMixin):
         # 取消按钮
         if HAS_FLUENT_WIDGETS:
             self.cancel_btn = ToolButton()
-            self.cancel_btn.setIcon(FluentIcon.CANCEL)
+            safe_set_icon(self.cancel_btn, FluentIcon.CANCEL)
         else:
             self.cancel_btn = QPushButton("✕")
         self.cancel_btn.setObjectName("cancelBtn")

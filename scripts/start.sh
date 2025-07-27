@@ -7,7 +7,7 @@ set -e
 # 应用程序信息
 APP_NAME="Data Analysis Pro"
 APP_VERSION="1.0.0"
-APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../" && pwd)"
 MAIN_SCRIPT="$APP_DIR/main.py"
 
 # 颜色定义
