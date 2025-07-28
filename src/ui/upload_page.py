@@ -84,6 +84,7 @@ except ImportError:
         CANCEL = "cancel"
 
 from ..core.analysis_engine import AnalysisConfig, AnalysisEngine
+from ..core.analysis_result_manager import get_analysis_result_manager
 from ..core.chart_renderer import ChartRenderer, ChartStyle
 from ..core.history_manager import get_history_manager
 from ..data.data_loader import DataLoader, LoaderConfig
@@ -387,6 +388,15 @@ class UploadWorker(QThread, LoggerMixin):
             self.progress_updated.emit(100, "分析流程完成")
             self.status_changed.emit(UploadStatus.COMPLETED.value)
 
+            # 将分析结果存储到AnalysisResultManager中
+            try:
+                result_manager = get_analysis_result_manager()
+                result_manager.store_result(self.file_info.file_path, analysis_result, self.file_info)
+                self.logger.info(f"分析结果已存储到管理器: {self.file_info.file_path}")
+            except Exception as e:
+                self.logger.error(f"存储分析结果到管理器失败: {str(e)}")
+                # 即使存储失败，也继续发出信号，保持向后兼容性
+            
             # 发出信号
             self.file_loaded.emit(self.file_info)
             self.analysis_completed.emit(analysis_result, self.file_info)
@@ -430,22 +440,30 @@ class UploadWorker(QThread, LoggerMixin):
         try:
             # 生成数据分布图
             if hasattr(data, 'select_dtypes'):
+                from ..core.chart_renderer import ChartConfig, ChartType
                 numeric_cols = data.select_dtypes(include=['number']).columns[:5]  # 最多5列
                 for col in numeric_cols:
+                    histogram_config = ChartConfig(
+                        chart_type=ChartType.HISTOGRAM,
+                        title=f"{col} 分布图"
+                    )
                     chart = self.chart_renderer.create_histogram(
                         data[col],
-                        title=f"{col} 分布图",
-                        style=ChartStyle.MODERN
+                        config=histogram_config
                     )
                     if chart:
                         charts.append(chart)
 
             # 生成相关性热力图
             if hasattr(analysis_result, 'correlation_matrix') and analysis_result.correlation_matrix:
+                heatmap_config = ChartConfig(
+                    chart_type=ChartType.CORRELATION_HEATMAP,
+                    title="相关性分析"
+                )
                 chart = self.chart_renderer.create_correlation_heatmap(
                     analysis_result.correlation_matrix.matrix,
                     analysis_result.correlation_matrix.columns,
-                    title="相关性分析"
+                    config=heatmap_config
                 )
                 if chart:
                     charts.append(chart)

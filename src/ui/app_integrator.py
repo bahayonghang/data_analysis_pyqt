@@ -13,7 +13,13 @@ except ImportError:
     class QObject:
         pass
     def pyqtSignal(*args):
-        return lambda *a, **k: None
+        return lambda: None
+
+# 导入分析结果管理器
+from ..core.analysis_result_manager import get_analysis_result_manager
+
+# 导入图标工具函数
+from ..utils.icon_utils import safe_set_icon
 
 try:
     from qfluentwidgets import (
@@ -164,12 +170,12 @@ class HomePage(QObject, LoggerMixin):
 
         # 快速操作按钮
         upload_btn = PrimaryPushButton("上传数据文件")
-        upload_btn.setIcon(FluentIcon.FOLDER)
+        safe_set_icon(upload_btn, FluentIcon.FOLDER)
         upload_btn.clicked.connect(lambda: self.navigate_requested.emit("upload"))
         actions_layout.addWidget(upload_btn)
 
         history_btn = PrimaryPushButton("查看历史记录")
-        history_btn.setIcon(FluentIcon.HISTORY)
+        safe_set_icon(history_btn, FluentIcon.HISTORY)
         history_btn.clicked.connect(lambda: self.navigate_requested.emit("history"))
         actions_layout.addWidget(history_btn)
 
@@ -429,9 +435,21 @@ class ApplicationIntegrator(QObject, LoggerMixin):
             self.current_analysis_result = analysis_result
             self.current_file_info = file_info
 
-            # 将分析结果传递给分析页面
-            if self.analysis_page and hasattr(self.analysis_page, 'load_analysis_result'):
-                self.analysis_page.load_analysis_result(analysis_result, file_info)
+            # 获取分析结果管理器并存储结果
+            result_manager = get_analysis_result_manager()
+            file_path = file_info.file_path if hasattr(file_info, 'file_path') else str(file_info)
+
+            # 存储分析结果到管理器
+            if result_manager.store_result(file_path, analysis_result, file_info):
+                self.logger.info(f"分析结果已存储到管理器: {file_path}")
+            else:
+                self.logger.warning(f"分析结果存储失败: {file_path}")
+
+            # 通知分析页面从管理器加载结果
+            if self.analysis_page and hasattr(self.analysis_page, 'load_from_manager'):
+                self.analysis_page.load_from_manager(file_path)
+            elif self.analysis_page:
+                self.logger.warning("分析页面不支持load_from_manager方法，请更新分析页面代码")
 
             # 导航到分析页面显示结果
             if self.main_window:

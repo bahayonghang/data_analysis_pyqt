@@ -136,11 +136,13 @@ except ImportError:
     HAS_PANDAS = False
 
 from ..core.analysis_engine import AnalysisConfig, AnalysisEngine
+from ..core.analysis_result_manager import get_analysis_result_manager
 from ..core.chart_renderer import ChartFormat, ChartRenderer, ChartStyle, ChartType
 from ..core.history_manager import HistoryManager, get_history_manager
 from ..export.export_manager import ExportManager
 from ..models.analysis_history import AnalysisHistoryRecord, AnalysisStatus
 from ..models.extended_analysis_result import AnalysisResult
+from ..models.file_info import FileInfo
 from ..utils.basic_logging import LoggerMixin
 from ..utils.icon_utils import safe_set_icon
 
@@ -1625,6 +1627,98 @@ class AnalysisPage(QWidget, LoggerMixin):
         """获取当前分析结果"""
         return self.current_result
 
+    def load_from_manager(self, file_path: str) -> bool:
+        """
+        从分析结果管理器加载分析结果
+
+        Args:
+            file_path: 文件路径，用于从管理器中检索结果
+
+        Returns:
+            bool: 加载是否成功
+        """
+        try:
+            # 获取分析结果管理器
+            result_manager = get_analysis_result_manager()
+
+            # 尝试从管理器获取分析结果
+            analysis_result = result_manager.get_result(file_path)
+            file_info = result_manager.get_file_info(file_path)
+
+            if analysis_result is None:
+                # 没有找到分析结果，显示提示信息
+                self.logger.info(f"未找到文件的分析结果: {file_path}")
+                self._show_info("未找到分析结果，请重新进行分析")
+
+                # 清除当前结果显示
+                self._clear_results()
+
+                # 如果有文件信息，尝试加载数据以便重新分析
+                if file_info and hasattr(file_info, 'data') and file_info.data is not None:
+                    self.load_data(file_info.data, file_path)
+                    self.logger.info(f"已加载数据，可以重新分析: {file_path}")
+                else:
+                    # 更新数据状态标签显示无数据
+                    self.data_status_label.setText("无数据")
+                    self.start_btn.setEnabled(False)
+                    self.logger.warning(f"无法加载数据进行重新分析: {file_path}")
+
+                return False
+
+            # 成功获取到分析结果
+            self.logger.info(f"从管理器加载分析结果成功: {file_path}")
+
+            # 保存当前结果和相关信息
+            self.current_result = analysis_result
+            self.current_file_path = file_path
+
+            # 如果有文件信息，也加载相关数据
+            if file_info:
+                if hasattr(file_info, 'data') and file_info.data is not None:
+                    self.current_data = file_info.data
+                    self.logger.debug("已加载关联的数据")
+
+                # 更新数据状态标签
+                file_name = getattr(file_info, 'file_name', 'unknown')
+                data_shape = getattr(analysis_result, 'data_shape', 'unknown')
+                self.data_status_label.setText(f"已加载: {file_name} ({data_shape})")
+            else:
+                # 没有文件信息，从分析结果中获取基本信息
+                data_shape = getattr(analysis_result, 'data_shape', 'unknown')
+                self.data_status_label.setText(f"已加载分析结果 ({data_shape})")
+
+            # 显示分析结果
+            self.results_widget.display_results(analysis_result)
+
+            # 启用开始分析按钮（允许重新分析）
+            self.start_btn.setEnabled(True)
+            self.start_btn.setText("重新分析")
+
+            # 显示成功信息
+            result_info = result_manager.get_result_info(file_path)
+            if result_info:
+                age_minutes = result_info.get('age_minutes', 0)
+                if age_minutes < 60:
+                    age_text = f"{int(age_minutes)}分钟前"
+                else:
+                    age_text = f"{int(age_minutes/60)}小时前"
+                self._show_info(f"已加载分析结果 (生成于{age_text})")
+            else:
+                self._show_info("已加载分析结果")
+
+            return True
+
+        except Exception as e:
+            self.logger.error(f"从管理器加载分析结果失败: {str(e)}")
+            self._show_error(f"加载分析结果失败: {str(e)}")
+
+            # 清除当前结果显示
+            self._clear_results()
+            self.data_status_label.setText("加载失败")
+            self.start_btn.setEnabled(False)
+
+            return False
+
     def apply_responsive_layout(self, layout_mode: str):
         """应用响应式布局"""
         if layout_mode == 'mobile':
@@ -1715,7 +1809,7 @@ class AnalysisPage(QWidget, LoggerMixin):
 
     def _create_file_info_for_export(self):
         """为导出创建文件信息对象"""
-        from ..models.file_info import DataQualityInfo, FileInfo, FileType
+        from ..models.file_info import DataQualityInfo, FileType
 
         # 获取数据的基本信息
         row_count = len(self.current_data) if hasattr(self.current_data, '__len__') else 0
